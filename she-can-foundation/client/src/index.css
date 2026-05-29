@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --rose: #e8476a;
+  --rose-light: #f9d0d9;
+  --rose-dark: #c0254a;
+  --cream: #fdf8f3;
+  --charcoal: #1a1a2e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream);
+  color: var(--charcoal);
+  overflow-x: hidden;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center gap-2 bg-rose text-white px-8 py-3 rounded-full font-semibold text-sm transition-all duration-300 shadow-[0_8px_30px_rgba(232,71,106,0.35)] hover:bg-rose-dark hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(232,71,106,0.45)] active:scale-95;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center gap-2 bg-transparent text-charcoal px-8 py-3 rounded-full font-semibold text-sm border-2 border-charcoal/15 transition-all duration-300 hover:border-rose hover:text-rose hover:-translate-y-0.5 active:scale-95;
+  }
+
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-sm border border-rose/10 rounded-2xl shadow-[0_20px_60px_rgba(232,71,106,0.08)];
+  }
+
+  .section-label {
+    @apply text-xs font-bold tracking-[2px] uppercase text-rose mb-3 block;
+  }
+
+  .section-title {
+    @apply font-display text-3xl md:text-4xl font-black leading-tight;
+  }
+
+  .field-group {
+    @apply flex flex-col gap-1.5;
+  }
+
+  .field-label {
+    @apply text-sm font-semibold text-charcoal/80;
+  }
+
+  .field-input {
+    @apply w-full px-4 py-3 rounded-xl border border-charcoal/10 bg-white text-charcoal text-sm transition-all duration-200 outline-none focus:border-rose focus:ring-2 focus:ring-rose/10 placeholder:text-charcoal/30;
+  }
+
+  .field-input.error {
+    @apply border-red-400 ring-2 ring-red-100;
+  }
+
+  .error-text {
+    @apply text-xs text-red-500 mt-0.5;
+  }
+}
+
+/* Blob animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%       { transform: translateY(-30px) scale(1.05); }
+}
+
+/* Scroll reveal */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.blob {
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.3;
+  animation: float 8s ease-in-out infinite;
+  position: absolute;
+  pointer-events: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--cream); }
+::-webkit-scrollbar-thumb { background: var(--rose-light); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--rose); }
