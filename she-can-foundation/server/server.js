@@ -72,15 +72,61 @@ app.use((err, _req, res, _next) => {
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 
-// ── Seed default admin ────────────────────────────────────────────────────────
+// ── Seed / repair default admin ───────────────────────────────────────────────
+/*
+ * FIX — Issue 2 (root cause):
+ *
+ * The original seedAdmin only created the admin if NO document existed:
+ *   if (!exists) { await Admin.create(...) }
+ *
+ * The problem: if the admin document was inserted directly into MongoDB Atlas
+ * (e.g. via Atlas UI or mongosh), it bypasses Mongoose's pre('save') hook,
+ * so the password is stored as PLAIN TEXT — not bcrypt-hashed.
+ *
+ * When login runs:  bcrypt.compare('SheCan@2025', 'SheCan@2025')
+ * bcrypt.compare expects the second argument to be a valid bcrypt hash
+ * starting with "$2b$" or "$2a$". A plain-text string fails the comparison
+ * and returns false, causing "Invalid credentials" every time.
+ *
+ * The seedAdmin guard (`if (!exists)`) also prevents the auto-fix from firing
+ * because the document already exists — just with an unhashed password.
+ *
+ * FIX: After finding the existing admin, check if the stored password looks
+ * like a bcrypt hash. If it doesn't, re-hash it and save via Mongoose
+ * (which triggers the pre('save') hook). This repairs any manually-inserted
+ * admin document on the next server start without losing the document.
+ */
 async function seedAdmin() {
   try {
-    const exists = await Admin.findOne({ email: 'admin@shecan.org' });
+    const SEED_EMAIL    = 'admin@shecan.org';
+    const SEED_PASSWORD = 'SheCan@2025';
+
+    const exists = await Admin.findOne({ email: SEED_EMAIL });
+
     if (!exists) {
-      await Admin.create({ email: 'admin@shecan.org', password: 'SheCan@2025' });
-      console.log('🌱 Default admin seeded — admin@shecan.org / SheCan@2025');
+      // No admin at all — create one fresh (pre('save') hook will hash the password)
+      await Admin.create({ email: SEED_EMAIL, password: SEED_PASSWORD });
+      console.log('🌱 Default admin seeded —', SEED_EMAIL, '/ SheCan@2025');
+      return;
+    }
+
+    // Admin document exists — check if the password is already a bcrypt hash.
+    // All bcrypt hashes start with "$2b$" or "$2a$" and are exactly 60 chars.
+    const looksHashed = /^\$2[ab]\$\d+\$/.test(exists.password);
+
+    if (!looksHashed) {
+      /*
+       * Password is plain text (was inserted directly into MongoDB bypassing
+       * Mongoose). Assign the new plain-text value; the pre('save') hook will
+       * hash it automatically when we call .save().
+       */
+      exists.password = SEED_PASSWORD;
+      await exists.save(); // triggers pre('save') → bcrypt.hash(password, 12)
+      console.log('🔧 Admin password was plain-text — re-hashed and saved successfully.');
+    } else {
+      console.log('✅ Admin account verified — password is correctly hashed.');
     }
   } catch (err) {
-    console.error('Seed error:', err.message);
+    console.error('Seed/repair error:', err.message);
   }
 }

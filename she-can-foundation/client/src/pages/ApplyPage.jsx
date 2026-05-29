@@ -78,6 +78,7 @@ export default function ApplyPage() {
     if (Object.keys(errs).length) { setErrors(errs); toast.error('Please fix the errors below'); return; }
 
     setLoading(true);
+
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
@@ -87,12 +88,46 @@ export default function ApplyPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      setAppId(res.data.data.applicationId);
-      setSuccess(true);
-      setForm(initialForm);
-      setResume(null);
+      /*
+       * FIX — Issue 1:
+       * The backend returns: { success: true, data: <applicationDocument> }
+       * The full Mongoose document is in res.data.data.
+       * We must check res.data.success === true before treating as success,
+       * and safely read applicationId from res.data.data.applicationId.
+       *
+       * Previously there was no explicit success check, so any unexpected
+       * shape (e.g. missing 'data' key) would throw a TypeError inside the
+       * try block which was silently caught and shown as "Submission failed".
+       *
+       * We also wrap state updates outside this logic to avoid React render
+       * errors being caught by the same catch block.
+       */
+      if (res.data && res.data.success) {
+        // Safely extract applicationId from the returned document
+        const returnedId = res.data.data?.applicationId ?? null;
+
+        // Update state — these are synchronous React state setters, safe here
+        setAppId(returnedId);
+        setSuccess(true);
+        setForm(initialForm);
+        setResume(null);
+        if (fileRef.current) fileRef.current.value = '';
+
+        // Show success toast as additional feedback
+        toast.success('Application submitted successfully! 🎉');
+      } else {
+        // Backend returned 2xx but without success:true — treat as failure
+        toast.error(res.data?.message || 'Submission failed. Please try again.');
+      }
+
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed. Please try again.');
+      /*
+       * Only reaches here on actual HTTP errors (4xx/5xx) or network failures.
+       * err.response is populated by axios for HTTP error responses.
+       * For network errors (no response), fall back to a generic message.
+       */
+      const serverMsg = err.response?.data?.message;
+      toast.error(serverMsg || 'Submission failed. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
